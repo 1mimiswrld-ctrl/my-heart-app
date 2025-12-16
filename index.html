@@ -1,0 +1,201 @@
+<!html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; background-color: #fff1f2; margin: 0; font-family: sans-serif; }
+        .heart-pulse { animation: heartBeat 1.5s infinite ease-in-out; }
+        @keyframes heartBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="hide-scrollbar">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [loadPercent, setLoadPercent] = useState(0);
+            const [isLoading, setIsLoading] = useState(true);
+
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setLoadPercent(prev => {
+                        if (prev >= 100) {
+                            clearInterval(interval);
+                            setTimeout(() => setIsLoading(false), 500);
+                            return 100;
+                        }
+                        return prev + 5;
+                    });
+                }, 40);
+                return () => clearInterval(interval);
+            }, []);
+
+            return isLoading ? (
+                <div className="h-screen w-screen flex flex-col items-center justify-center bg-rose-400 text-white p-10">
+                    <div className="heart-pulse text-7xl mb-8">💖</div>
+                    <p className="text-[10px] font-black tracking-[0.4em] mb-4 uppercase">Saving your Sparkles ✨</p>
+                    <div className="w-full max-w-xs bg-rose-500 h-4 rounded-full overflow-hidden border-2 border-white/30 p-1">
+                        <div className="bg-white h-full rounded-full transition-all duration-100" style={{ width: `${loadPercent}%` }}></div>
+                    </div>
+                </div>
+            ) : <SavingApp />;
+        }
+
+        function SavingApp() {
+            const [currency, setCurrency] = useState({ symbol: '$', name: 'USD' });
+            
+            // LOAD DATA FROM STORAGE ON START
+            const [jars, setJars] = useState(() => {
+                const saved = localStorage.getItem('heartJars');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const [newName, setNewName] = useState('');
+            const [newGoal, setNewGoal] = useState('');
+
+            const currencies = [
+                { symbol: '$', name: 'USD' }, { symbol: '€', name: 'EUR' },
+                { symbol: 'R', name: 'ZAR' }, { symbol: '£', name: 'GBP' }
+            ];
+
+            // SAVE DATA TO STORAGE EVERY TIME JARS CHANGE
+            useEffect(() => {
+                localStorage.setItem('heartJars', JSON.stringify(jars));
+            }, [jars]);
+
+            const createJar = () => {
+                if (!newName || !newGoal) return;
+                setJars([...jars, {
+                    id: Date.now(),
+                    name: newName,
+                    goal: parseFloat(newGoal),
+                    saved: 0,
+                    inputVal: '' 
+                }]);
+                setNewName('');
+                setNewGoal('');
+            };
+
+            const handleInputChange = (id, value) => {
+                setJars(jars.map(j => j.id === id ? { ...j, inputVal: value } : j));
+            };
+
+            const updateBalance = (id, isAdding) => {
+                setJars(jars.map(jar => {
+                    if (jar.id === id) {
+                        const amount = parseFloat(jar.inputVal);
+                        if (isNaN(amount) || amount <= 0) return jar;
+                        
+                        const newSaved = isAdding 
+                            ? jar.saved + amount 
+                            : Math.max(0, jar.saved - amount);
+                        
+                        return { ...jar, saved: newSaved, inputVal: '' };
+                    }
+                    return jar;
+                }));
+            };
+
+            const deleteJar = (id) => {
+                if(confirm("Delete this saving goal? 🌸")) {
+                    setJars(jars.filter(j => j.id !== id));
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center p-6 pb-20">
+                    <div className="w-full max-w-sm">
+                        
+                        <div className="flex justify-between items-center mb-8">
+                            <h1 className="text-rose-500 font-black text-2xl italic">HeartSaver ✨</h1>
+                            <select 
+                                onChange={(e) => setCurrency(currencies.find(c => c.symbol === e.target.value))}
+                                className="bg-white border-none rounded-full px-3 py-1 text-[10px] font-black text-rose-400 shadow-sm ring-1 ring-rose-100"
+                            >
+                                {currencies.map(c => <option key={c.name} value={c.symbol}>{c.name}</option>)}
+                            </select>
+                        </div>
+
+                        {/* Create Jar */}
+                        <div className="bg-white rounded-[2.5rem] p-6 mb-10 shadow-xl border-2 border-rose-50">
+                            <h2 className="text-[10px] font-black text-rose-300 uppercase tracking-widest mb-4 text-center">New Saving Topic</h2>
+                            <input 
+                                value={newName}
+                                onChange={(e) => setNewName(e.target.value)}
+                                placeholder="What for? (e.g. Nails)"
+                                className="w-full bg-rose-50 px-5 py-3 rounded-2xl mb-3 outline-none text-rose-500 font-bold placeholder-rose-200"
+                            />
+                            <div className="flex gap-2">
+                                <input 
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={newGoal}
+                                    onChange={(e) => setNewGoal(e.target.value)}
+                                    placeholder="Goal Amount"
+                                    className="flex-1 bg-rose-50 px-5 py-3 rounded-2xl outline-none text-rose-500 font-bold"
+                                />
+                                <button onClick={createJar} className="bg-rose-400 text-white px-6 rounded-2xl font-black shadow-lg">OK</button>
+                            </div>
+                        </div>
+
+                        {/* Jars List */}
+                        <div className="space-y-10">
+                            {jars.length === 0 ? (
+                                <div className="text-center opacity-40 py-10">
+                                    <div className="text-4xl mb-2">🌸</div>
+                                    <p className="text-rose-400 font-bold italic">No jars yet!</p>
+                                </div>
+                            ) : (
+                                jars.map(jar => {
+                                    const percent = Math.min(100, (jar.saved / jar.goal) * 100);
+                                    return (
+                                        <div key={jar.id} className="bg-white rounded-[3rem] p-6 shadow-2xl border-b-8 border-rose-100 relative">
+                                            <button onClick={() => deleteJar(jar.id)} className="absolute top-6 right-6 text-xl">🗑️</button>
+                                            
+                                            <h3 className="text-rose-400 font-black uppercase text-xs tracking-widest mb-1">{jar.name}</h3>
+                                            <div className="flex items-baseline gap-1 mb-4">
+                                                <span className="text-4xl font-black text-rose-600">{currency.symbol}{jar.saved.toLocaleString()}</span>
+                                                <span className="text-rose-200 text-xs font-bold">/ {currency.symbol}{jar.goal}</span>
+                                            </div>
+
+                                            <div className="w-full bg-rose-50 h-5 rounded-full mb-6 shadow-inner border border-rose-100 overflow-hidden p-1">
+                                                <div className="bg-gradient-to-r from-rose-300 to-rose-500 h-full rounded-full transition-all duration-700" style={{ width: `${percent}%` }}></div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <input 
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    placeholder="Enter amount..."
+                                                    value={jar.inputVal}
+                                                    onChange={(e) => handleInputChange(jar.id, e.target.value)}
+                                                    className="w-full bg-rose-50 border-2 border-rose-100 rounded-2xl py-4 text-center font-black text-rose-600 placeholder-rose-200 outline-none focus:border-rose-400 transition-all text-xl"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => updateBalance(jar.id, false)} className="flex-1 bg-white border-2 border-rose-100 text-rose-300 font-black py-4 rounded-2xl active:scale-95 text-xs">WITHDRAW</button>
+                                                    <button onClick={() => updateBalance(jar.id, true)} className="flex-1 bg-rose-400 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 text-xs uppercase tracking-widest">Deposit</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
