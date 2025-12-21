@@ -12,6 +12,14 @@
         .heart-pulse { animation: heartBeat 1.5s infinite ease-in-out; }
         @keyframes heartBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
+        /* Calculator Glass Effect */
+        .glass-calc {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 241, 242, 0.6);
+            box-shadow: 0 20px 40px rgba(251, 113, 133, 0.25);
+        }
     </style>
 </head>
 <body class="hide-scrollbar">
@@ -49,10 +57,72 @@
             ) : <SavingApp />;
         }
 
+        // --- CALCULATOR COMPONENT ---
+        function Calculator({ onClose }) {
+            const [display, setDisplay] = useState('');
+
+            const handleBtn = (val) => {
+                if (val === 'C') {
+                    setDisplay('');
+                } else if (val === '=') {
+                    try {
+                        // Safe evaluation of math string
+                        setDisplay(eval(display).toString());
+                    } catch {
+                        setDisplay('Error');
+                    }
+                } else {
+                    setDisplay(display + val);
+                }
+            };
+
+            const buttons = [
+                '7', '8', '9', '/',
+                '4', '5', '6', '*',
+                '1', '2', '3', '-',
+                'C', '0', '.', '+',
+                '='
+            ];
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="glass-calc w-full max-w-xs rounded-[2.5rem] p-6 relative">
+                        <button 
+                            onClick={onClose} 
+                            className="absolute top-4 right-5 text-rose-300 font-bold text-xl active:scale-90"
+                        >✕</button>
+                        
+                        <div className="mb-6 mt-4">
+                            <div className="bg-rose-50 h-20 rounded-2xl flex items-center justify-end px-4 text-3xl font-black text-rose-500 overflow-hidden shadow-inner border border-rose-100">
+                                {display || '0'}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-3">
+                            {buttons.map(btn => (
+                                <button 
+                                    key={btn} 
+                                    onClick={() => handleBtn(btn)}
+                                    className={`
+                                        h-14 rounded-2xl font-black text-lg shadow-sm transition-all active:scale-95
+                                        ${btn === '=' ? 'col-span-4 bg-rose-500 text-white shadow-rose-200 shadow-lg mt-2' : ''}
+                                        ${btn === 'C' ? 'text-rose-400 bg-rose-100' : ''}
+                                        ${['/','*','-','+'].includes(btn) ? 'bg-rose-200 text-white' : 'bg-white text-rose-500'}
+                                    `}
+                                >
+                                    {btn}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         function SavingApp() {
             const [currency, setCurrency] = useState({ symbol: '$', name: 'USD' });
+            const [showCalc, setShowCalc] = useState(false);
             
-            // LOAD DATA FROM STORAGE ON START
             const [jars, setJars] = useState(() => {
                 const saved = localStorage.getItem('heartJars');
                 return saved ? JSON.parse(saved) : [];
@@ -66,7 +136,6 @@
                 { symbol: 'R', name: 'ZAR' }, { symbol: '£', name: 'GBP' }
             ];
 
-            // SAVE DATA TO STORAGE EVERY TIME JARS CHANGE
             useEffect(() => {
                 localStorage.setItem('heartJars', JSON.stringify(jars));
             }, [jars]);
@@ -112,16 +181,28 @@
 
             return (
                 <div className="min-h-screen flex flex-col items-center p-6 pb-20">
+                    {/* Calculator Overlay */}
+                    {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
+
                     <div className="w-full max-w-sm">
                         
+                        {/* Header with Calc Button */}
                         <div className="flex justify-between items-center mb-8">
                             <h1 className="text-rose-500 font-black text-2xl italic">HeartSaver ✨</h1>
-                            <select 
-                                onChange={(e) => setCurrency(currencies.find(c => c.symbol === e.target.value))}
-                                className="bg-white border-none rounded-full px-3 py-1 text-[10px] font-black text-rose-400 shadow-sm ring-1 ring-rose-100"
-                            >
-                                {currencies.map(c => <option key={c.name} value={c.symbol}>{c.name}</option>)}
-                            </select>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setShowCalc(true)}
+                                    className="bg-white w-8 h-8 rounded-full shadow-sm text-lg flex items-center justify-center active:scale-90 transition-transform"
+                                >
+                                    🧮
+                                </button>
+                                <select 
+                                    onChange={(e) => setCurrency(currencies.find(c => c.symbol === e.target.value))}
+                                    className="bg-white border-none rounded-full px-3 py-1 text-[10px] font-black text-rose-400 shadow-sm ring-1 ring-rose-100"
+                                >
+                                    {currencies.map(c => <option key={c.name} value={c.symbol}>{c.name}</option>)}
+                                </select>
+                            </div>
                         </div>
 
                         {/* Create Jar */}
